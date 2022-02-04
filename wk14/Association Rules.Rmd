@@ -1,0 +1,216 @@
+---
+title: "ASSOCIATION RULES-IP"
+author: "KIPLANGAT-DAVID"
+date: "February 2, 2022"
+output: html_document
+---
+
+##RESEARCH QUESTION##
+
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax).This project is aimed at doing analysis on the dataset provided by carrefour and create insights on how to achieve highest sales.
+
+##METRIC FOR SUCCESS##
+
+Be able to detect and do away with anomalies in our dataset
+
+##THE CONTEXT##
+
+Carre Four is an International chain of retail supemarkets in the world, It was set up in Kenya in the year 2016 and has been performing well over the years.Carrefour ensures customer satisfaction and everyday convenience while offering unbeatable value for money with a vast array of more than 100,000 products, shoppers can purchase items for their every need, whether home electronics or fresh fruits from around the world, to locally produced items.
+This project is aimed at creating insights from existing and current trends to develop marketing strategies that will enable the marketing team achieve higher sales.
+
+
+
+##EXPERIMENTAL DESIGN##
+
+ 1. Loading libraries
+ 2. Load data
+ 2. Data cleaning
+ 3. Exploratory analysis
+ 4. Association Rule
+ 5. Conclusion
+ 6. Recommendation
+ 
+
+##DATA RELEVANCE##
+
+The data we are using for this  study was sourced from CarreFour database and is a reflection of current transactions
+
+##1. LIBRARIES##
+
+```{r}
+
+# Loading package
+library(arules)
+library(arulesViz)
+  
+```
+
+
+##2. LOAD DATA##
+
+```{r}
+# Loading data
+df = read.transactions('http://bit.ly/SupermarketDatasetII',sep = ",", rm.duplicates = TRUE)
+df
+
+```
+
+```{r}
+#preview
+inspect(df[1:5])
+```
+```{r}
+#preview the items that make up our dataset
+items<-as.data.frame(itemLabels(df))
+colnames(items) <- "Item"
+head(items, 10)
+```
+
+
+```{r}
+#verify class
+class(df)
+```
+- The class is 'transaction' which is the write class for use here
+
+```{r}
+#transaction structure
+str(df)
+```
+
+
+##3. EXPLORATORY DATA ANALYSIS##
+
+```{r}
+#transactions summary
+summary(df)
+```
+
+
+ - There are 7501 transactions (rows) and 119 items (columns). 119 in this case represent the product descriptions involved in the dataset and 7501 transactions are collections of these items.
+
+- Density tells the percentage of non-zero cells in a sparse matrix. It is the total number of items that are purchased divided by a possible number of items in the matrix. The number of items purchased can be calculatedusing density as: 7501x119x0.03288973 = 29357
+
+ - There is  1754 transaction for one item, 1368 for two... and there are 20 items in one transaction.
+ 
+ ##itemFrequencyPlot##
+```{r}
+#Displaying top 20 most common items
+
+itemFrequencyPlot(df,topN=20,type="absolute",col="darkred", main="Absolute Item Frequency Plot")
+
+```
+
+ - Mineral water has the most sales followed by eggs and so on.
+ To immprove the sale of tomatoes, the retailer can place it near ground beef.
+ 
+```{r}
+#items whose relative importance is above 10%
+itemFrequencyPlot(df, support = 0.1,col="darkred", main='More important items')
+```
+
+
+##4.GENERATING RULES##
+
+Next step is to mine the rules using the APRIORI algorithm. The function apriori() is from package arules.
+
+ - We will use Min Support as 0.001, confidence as 0.8.
+ 
+```{r}
+association_rules <- apriori(df, parameter = list(supp=0.001, conf=0.8))
+```
+ 
+ - 74 rules generated
+```{r}
+summary(association_rules)
+```
+
+```{r}
+#print top 5 rules
+inspect(association_rules[1:5])
+```
+
+ - 88.9% of the customers who bought 'frozen smoothie, spinach' also bought 'mineral water'.
+
+ - 81.2% of the customers who bought 'bacon, pancakes' also bought spaghetti
+ 
+ 
+ ##Redundant rules##
+ 
+We will remove rules that are subsets of larger rules. 
+```{r}
+subset_rules <- which(colSums(is.subset(association_rules, association_rules)) > 1) # get subset rules in vector
+length(subset_rules)
+```
+
+- There are 12 redundant rules
+
+Now remove the subset rules
+```{r}
+subset.association_rules. <- association_rules[-subset_rules] 
+```
+
+
+##Rules related to given items##
+
+ -  We will use *appearance* option in the apriori command. appearance gives us options to set *LHS* (IF part) and *RHS* (THEN part) of the rule.
+
+*Find what customers buy before buying mineral water* 
+```{r}
+mineral_water <- apriori(df, parameter = list(supp=0.001, conf=0.8),appearance = list(default="lhs",rhs="mineral water"))
+```
+
+```{r}
+
+inspect(mineral_water[1:5])
+```
+
+
+*Similarly, to find the answer to the question Customers who bought mineral water also bought.... we will keep mineral water on lhs*
+```{r}
+mineral_water <- apriori(df, parameter = list(supp=0.001, conf=0.8),appearance = list(lhs="mineral water",default="rhs"))
+```
+
+```{r}
+
+inspect(head(mineral_water))
+```
+
+
+##Visualizing Association Rules##
+
+##Scatter Plot##
+
+```{r}
+# Filter rules with confidence greater than 0.6 or 60%
+subRules<-association_rules[quality(association_rules)$confidence>0.6]
+#Plot SubRules
+plot(subRules)
+```
+
+ - Rules with high lift have low support.
+ 
+ ##The two-key plot##
+ 
+ - The two-key plot uses support and confidence on x and y-axis respectively. It uses order for coloring. 
+ 
+```{r}
+plot(subRules,method="two-key plot")
+```
+ - The order is the number of items in the rule
+
+
+##Interactive Plot##
+```{r}
+top10subRules <- head(subRules, n = 10, by = "confidence")
+plot(top10subRules, method = "graph",  engine = "htmlwidget")
+```
+
+##5. CONCLUSION##
+
+Items transacted by customers has a relationship
+
+##6. RECOMMENDATION##
+
+Products that are popular among customers, those that are  most likely to entice them such as mineral water should be placed at the eye level
+

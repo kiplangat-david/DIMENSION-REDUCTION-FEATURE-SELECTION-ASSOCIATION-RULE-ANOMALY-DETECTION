@@ -1,0 +1,240 @@
+---
+title: "DIMENSIONALITY REDUCTION"
+author: "KIPLANGAT-DAVID"
+date: "February 1, 2022"
+output: html_document
+
+
+##RESEARCH QUESTION##
+
+Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax).This project is aimed at doing analysis on the dataset provided by carrefour and create insights on how to achieve highest sales.
+
+##METRIC FOR SUCCESS##
+
+Be able to detect and do away with anomalies in our dataset
+
+##THE CONTEXT##
+
+Carre Four is an International chain of retail supemarkets in the world, It was set up in Kenya in the year 2016 and has been performing well over the years.Carrefour ensures customer satisfaction and everyday convenience while offering unbeatable value for money with a vast array of more than 100,000 products, shoppers can purchase items for their every need, whether home electronics or fresh fruits from around the world, to locally produced items. This project is aimed at obtaining important variables (in form of components) which will be useful in creating insights from existing and current trends to develop marketing strategies that will enable the marketing team achieve higher sales.
+
+##EXPERIMENTAL DESIGN##
+
+1. Loading libraries
+2. Load data
+3. Data cleaning
+4. Exploratory analysis
+5. Dimension reduction
+6. Conclusion
+7. Recommendation
+
+##DATA RELEVANCE##
+
+The data we are using for this study was sourced from CarreFour database and is a reflection of current transactions
+
+
+##1. LIBRARIES##
+
+```{r}
+
+library(ggplot2)
+library(tidyverse)
+library(gmodels)
+library(ggmosaic)
+library(corrplot)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(fpc)
+library(data.table)
+library(plyr)
+library(dplyr)
+library(cluster)
+library(factoextra) 
+library(flextable)
+
+```
+
+
+##@. LOAD DATA##
+
+```{r}
+df <- read.csv('http://bit.ly/CarreFourDataset')
+head(df)
+
+```
+
+Check dimension of dataset
+```{r}
+dim(df)
+```
+
+Our data has 1000 observations and 16 variables
+
+Now we check faeture names
+```{r}
+names(df)
+```
+
+
+##@. DATA CLEANING##
+
+Missing values
+```{r}
+sum(is.na(df))
+```
+
+-There are no missing values
+
+
+Duplicates
+```{r}
+anyDuplicated(df)
+```
+
+-Duplicates do not exist as well
+
+Data types
+```{r}
+columns = colnames(df)
+for (column in seq(length(colnames(df)))){
+    print(columns[column])
+    print(class(df[, column]))
+    cat('\n')}
+```
+
+- our datatypes are numeric, integer and character.
+We will make our dataset numeric because PCA works on numeric variables
+
+
+
+
+Drop invoice_id,date and time columns
+```{r}
+#drop
+df <- within(df,rm('Invoice.ID','Date','Time'))
+```
+
+```{r}
+head(df)
+```
+
+Encode categorical variables
+```{r}
+#select list of categorical variables,df1
+df1 <- df[,c(1,2,3,4,8)]#categorical
+#make a subset of non-categorical variables,df2
+df2 <- df[,c(5,6,7,9,10,11,12,13)]
+```
+
+
+Now encode categorical variables
+```{r}
+
+dmy <- dummyVars(" ~ .", data = df1, fullRank = T)
+df3 <- data.frame(predict(dmy, newdata = df1))
+```
+
+Combine the encoded with the original numeric variables
+```{r}
+data <- cbind(df3,df2)
+```
+
+##4. DIMENSION REDUCTION##
+
+We will apply Principal Component Analysis (PCA)
+
+PCA is a method of obtaining important variables (in form of components) from a large set of variables available in a data set. It extracts low dimensional set of features by taking a projection of irrelevant dimensions from a high dimensional data set with a motive to capture as much information as possible
+-The base R function prcomp() is used to perform PCA
+```{r}
+
+# Apply PCA using prcomp function
+
+my_pca <- prcomp(data, scale = F,
+                center = TRUE, retx = T)
+names(my_pca)
+```
+
+"sdev"     "rotation" "center"   "scale"    "x"
+The prcomp()  useful measures:
+
+1. center and scale refers to respective mean and standard deviation of the variables that are used for normalization prior to implementing PCA
+2. The rotation measure provides the principal component loading. Each column of rotation matrix contains the principal component loading vector
+```{r}
+# Summary
+summary(my_pca)
+```
+
+
+See the principal components
+```{r}
+
+dim(my_pca$x)
+my_pca$x
+```
+
+-We have 19 pricipal components
+
+Let’s plot the resultant principal components.
+```{r}
+# Plotting the resultant principal components
+# The parameter scale = 0 ensures that arrows
+# are scaled to represent the loadings
+biplot(my_pca, main = "Biplot", scale = 0)
+```
+
+-2nd principal component correspond to the unit.price
+
+Compute standard deviation
+```{r}
+my_pca$sdev
+```
+
+-The first 4 principal components has their standard deviations greater than 1. This shows that these components explain the maximum variance and therefore retain as much information as possible.
+
+
+Lets compute proportion of variance explained by each component
+-we will achieve this by dividing the variance by sum of total variance.
+```{r}
+# Compute variance
+my_pca.var <- my_pca$sdev ^ 2
+#proportion of variance
+propvar <- my_pca.var/sum(my_pca.var)
+propvar
+ 
+```
+
+-first principal component explains 99.6% variance. -Second component explains 0.36% variance and so on
+
+
+##Scree Plot##
+
+A scree plot is used to access components or factors which explains the most of variability in the data.
+It will help us decide how many components we should  select for modeling stage 
+```{r}
+plot(propvar, xlab = "Principal Component",
+             ylab = "Proportion of Variance Explained",
+             type = "b")
+```
+
+-PCA have reduced our variables from 13 to around 4 without compromising on explained variance.
+
+
+
+##Cumulative Scree Plot##
+
+```{r}
+ plot(cumsum(propvar), xlab = "Principal Component",
+              ylab = "Cumulative Proportion of Variance Explained",
+            type = "b")
+```
+
+-This plot shows that 4 components results in variance close to ~ 98%. Therefore, in this case, we’ll select number of components as 4 [PC1 to PC4] and proceed to the modeling stage
+
+
+##CONCLUSION##
+
+After performing dimensional reduction with PCA, our variables from 13 to around 4 without compromising on explained variance.
+
+##RECOMMENDATION##
+
+Apply other dimension reduction methods such as t-Distributed Stochastic Neighbor Embeddding and compare the results
